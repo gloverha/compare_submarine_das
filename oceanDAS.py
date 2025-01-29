@@ -325,10 +325,15 @@ def DAS_wave_conversion(das_data,fs,depth,strain_fac,strain_fac_frq,f_cutoff):
     # cut off data above a precalculated noise floor frequency
     ds_psd[f_psd>f_cutoff] = np.nan
     
-    # translate bed to surface
-    L,_ = dispersion(depth,1/f_psd)
-    attenuation = np.cosh((1/L)*depth)**2 # square for energy
-    attenuation[attenuation>120] = np.nan # cut it off when correction too big,don't amplify noise
+    k = (2*np.pi*f_psd)**2 / 9.8
+    attenuation = np.exp(k*depth)
+    attenuation = attenuation**2
+    attenuation[attenuation>500] = 500
+
+#     # translate bed to surface
+#     L,_ = dispersion(depth,1/f_psd)
+#     attenuation = np.cosh((1/L)*depth)**2 # square for energy
+    #attenuation[attenuation>120] = np.nan # cut it off when correction too big,don't amplify noise
     ds_psd_corr = ds_psd*attenuation
     
     if np.isfinite(ds_psd_corr).any():
@@ -365,10 +370,13 @@ def pres_wave_conversion(pressure,fs,depth):
     if depth==0:
         attenuation = 1
     else:    
-        L,_ = dispersion(depth,1/f_psd)
-        attenuation = np.cosh((1/L)*depth)**2 # square for energy
-        attenuation[attenuation>100] = np.nan; # cut it off when correction too big,don't amplify noise
-    ds_psd_corr = ds_psd*attenuation
+        k = (2*np.pi*f_psd)**2 / 9.8
+        attenuation = np.exp(k*depth)
+        attenuation = attenuation**2
+        ds_psd_corr = ds_psd*attenuation
+        attenuation[attenuation>500] = 500
+#         attenuation[attenuation>100] = np.nan; # cut it off when correction too big,don't amplify noise
+#         ds_psd_corr = ds_psd*attenuation
     
     # fill noise floor with f^-4 extrapolation:
     f_noise = f_psd[np.isnan(ds_psd_corr)]
@@ -513,7 +521,6 @@ def fk_filter_filt(trace, fk_filter_matrix):
 # z = position in water column want pressure, still water surface = 0, positive upward
 # x = points at same spatial resolution as h
 def dynpres(rho, H, L, h, omega, z, t, x):
-    import numpy as np
     g=9.8 # gravity m/s2
     x -= x[0]
 #     x = np.arange(0, L*3, .32)
@@ -533,10 +540,16 @@ def surfaceSpec(rawstrain, fs, h, f_noise):
     # Calculate depth attenuation function 
     frq[0] = frq[1]
     L,k = dispersion(h,1/frq)
-    attenuation = np.cosh(h/L)**2 # square for energy
-    attenuation[attenuation>100]=np.nan
+    
+    k = (2*np.pi*frq)**2 / 9.8
+    attenuation = np.exp(k*h)
+    attenuation = attenuation**2
+    attenuation[attenuation>500] = 500
+
+#     attenuation = np.cosh(h/L)**2 # square for energy
+#     attenuation[attenuation>100]=np.nan
     psd = psd*attenuation
-    psd = 20*np.log10(psd); # dB rel uE
+#    psd = 20*np.log10(psd); # dB rel uE
     psd[frq>f_noise]=np.nan
     return frq, psd
     
@@ -615,14 +628,18 @@ def interr_corr2(rawstrain, h, gl, pw, ns, fs,f_noise):
     psd *= (1 + H_k)
     
     # Account for depth attenuation-> surface spectra
-    attenuation = np.cosh(h/L)**2 # square for energy
-    attenuation[attenuation>100]=np.nan
+    k = (2*np.pi*frq)**2 / 9.8
+    attenuation = np.exp(k*h)
+    attenuation = attenuation**2
+    attenuation[attenuation>500] = 500
+#     attenuation = np.cosh(h/L)**2 # square for energy
+#     attenuation[attenuation>100]=np.nan
     psd = psd*attenuation
     # convert back to time series, specify variable length and normalization just for mental comfort
 #     newstrain = np.fft.irfft(P_k,n=ns,norm='ortho')
 
     
-    psd = 20*np.log10(psd); # dB rel uE
+#    psd = 20*np.log10(psd); # dB rel uE
     psd[frq>f_noise]=np.nan
 
     
