@@ -325,15 +325,16 @@ def DAS_wave_conversion(das_data,fs,depth,strain_fac,strain_fac_frq,f_cutoff):
     # cut off data above a precalculated noise floor frequency
     ds_psd[f_psd>f_cutoff] = np.nan
     
-    k = (2*np.pi*f_psd)**2 / 9.8
-    attenuation = np.exp(k*depth)
-    attenuation = attenuation**2
-    attenuation[attenuation>500] = 500
-
 #     # translate bed to surface
-#     L,_ = dispersion(depth,1/f_psd)
-#     attenuation = np.cosh((1/L)*depth)**2 # square for energy
-    #attenuation[attenuation>120] = np.nan # cut it off when correction too big,don't amplify noise
+#     k = (2*np.pi*f_psd)**2 / 9.8
+#     attenuation = np.exp(k*depth)
+#     attenuation = attenuation**2
+#     attenuation[attenuation>500] = 500
+
+    # translate bed to surface
+    L,k = dispersion(depth,1/f_psd)
+    attenuation = np.cosh((1/L)*depth)**2 # square for energy
+    attenuation[attenuation>120] = np.nan # cut it off when correction too big,don't amplify noise
     ds_psd_corr = ds_psd*attenuation
     
     if np.isfinite(ds_psd_corr).any():
