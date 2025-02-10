@@ -268,6 +268,21 @@ def loadFlorence(pname,fname):
 
     return rawstrain,das_time,chnl,depth,metadata
 
+def loadFlorence_downsampled(pname,fname):
+    with np.load(pname+fname,allow_pickle=True) as data:
+        das_time = data['t']
+        rawstrain = data['r7008']
+    fs = 2
+    dx = 6.38
+    L = 6.38 # gauge length in m
+    # dictionary of metadata
+    metadata = {'fs':fs,'gl':L,'dx':dx} #metadata['fs']
+
+    # load estimated water depth
+    depth = 45
+    chnl = 700
+
+    return rawstrain,das_time,chnl,depth,metadata
 
 
 
@@ -529,7 +544,7 @@ def surfaceSpec(rawstrain, fs, h, f_noise):
     # Calculate depth attenuation function 
     frq[0] = frq[1]
     
-    attenuation = calc_attenuation(frq,h)
+    attenuation = calc_onlyattenuation(frq,h)
     psd = psd*attenuation
 #    psd = 20*np.log10(psd); # dB rel uE
     psd[frq>f_noise]=np.nan
@@ -610,7 +625,7 @@ def interr_corr2(rawstrain, h, gl, pw, ns, fs,f_noise):
     psd *= (1 + H_k)
     
     # Account for depth attenuation-> surface spectra
-    attenuation = calc_attenuation(frq,h)
+    attenuation = calc_onlyattenuation(frq,h)
     psd = psd*attenuation
     # convert back to time series, specify variable length and normalization just for mental comfort
 #     newstrain = np.fft.irfft(P_k,n=ns,norm='ortho')
@@ -646,5 +661,12 @@ def calcnoisefloor(rawstrain,metadata):
 def calc_attenuation(frq,depth):
     _,k = dispersion(depth,1/frq)
     attenuation = np.exp(k*depth)**2
-    attenuation[attenuation>500]=np.nan
+    attenuation[attenuation>900]=900
+    return attenuation
+
+def calc_onlyattenuation(frq,depth):
+    # translate bed to surface
+    L,_ = dispersion(depth,1/frq)
+    attenuation = np.cosh((1/L)*depth)**2 # square for energy
+    attenuation[attenuation>120] = np.nan # cut it off when correction too big,don't amplify noise
     return attenuation
